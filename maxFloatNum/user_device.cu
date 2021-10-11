@@ -23,8 +23,6 @@ void device_parallelized_maxValueVector(float *vector, float *p_maxVal, int vect
         } else {
             if (index < vector_size) {
                 atomicMax_float(&cache[threadIdx.x], vector[index]);
-            } else {
-                break;
             }
         }
         index += offset;
@@ -39,7 +37,7 @@ void device_parallelized_maxValueVector(float *vector, float *p_maxVal, int vect
             tmp = (tmp < cache[i]) ? cache[i] : tmp;
         }
         global_cache[blockIdx.x] = tmp;
-        *p_block_cnt += 1;
+        (*p_block_cnt) = (*p_block_cnt) + 1;
     } else {
         return;
     }
@@ -53,8 +51,6 @@ void device_parallelized_maxValueVector(float *vector, float *p_maxVal, int vect
             tmp = (tmp < global_cache[i]) ? global_cache[i] : tmp;
         }
         *p_maxVal = tmp;
-    } else {
-        return;
     }
 }
 

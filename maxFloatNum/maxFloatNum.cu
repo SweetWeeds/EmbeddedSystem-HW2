@@ -4,10 +4,9 @@
 
 using namespace std;
 
-int host_block_cnt = 0;
-int *p_device_block_cnt;
+extern __device__ float global_cache[GLOBAL_CACHE_SIZE];
 
-float *generateVector(int size) {
+float *generateVector(int size, float *p_minVal, float *p_maxVal) {
     random_device rd;
     mt19937 gen(rd());
     uniform_real_distribution<float> dis(-123.45, 123.45);
@@ -16,7 +15,9 @@ float *generateVector(int size) {
     
     for (int i = 0; i < size; i++) {
         //vector[i] = dis(gen);
-        vector[i] = float(i * 100) / dis(gen);
+        vector[i] = dis(gen);
+        (*p_minVal) = (*p_minVal > vector[i]) ? vector[i] : (*p_minVal);
+        (*p_maxVal) = (*p_maxVal < vector[i]) ? vector[i] : (*p_maxVal);
     }
 
     return vector;
@@ -25,15 +26,14 @@ float *generateVector(int size) {
 int main(int argc, char *argv[]) {
     // Memory Allocation
     printf("[INFO] Generating vector...\n");
-    float minVal = -INFINITY, maxVal = INFINITY;
-    float *host_p_vector = generateVector(VECTOR_SIZE);
+    float minVal = INFINITY, maxVal = -INFINITY;
+    float *host_p_vector = generateVector(VECTOR_SIZE, &minVal, &maxVal);
     printf("[INFO] Max value:%.4f, Min Value:%.4f\n", maxVal, minVal);
     float *p_device_vector, *p_device_max_val;
     float *p_host_max_val   = (float *)malloc(sizeof(float));
     float *p_host_device_max_val = (float *)malloc(sizeof(float));
     cudaMalloc((void **)&p_device_vector, VECTOR_SIZE * sizeof(float));
     cudaMalloc((void **)&p_device_max_val, sizeof(float));
-    cudaMalloc((void **)&p_device_block_cnt, sizeof(int));
     cudaMemcpy(p_device_vector, host_p_vector, VECTOR_SIZE * sizeof(float), cudaMemcpyHostToDevice);
     
     // Host Code
@@ -48,6 +48,10 @@ int main(int argc, char *argv[]) {
     for (int numThreadsPerBlk = NUM_THREADS_BASE; numThreadsPerBlk <= NUM_THREADS_MAX; numThreadsPerBlk*=2) {
         for (int numBlks = NUM_THREAD_BLKS_FROM; numBlks <= NUM_THREAD_BLKS_TO; numBlks*=2) {
             int numOps = VECTOR_SIZE / (numThreadsPerBlk*numBlks);
+            int *p_device_block_cnt, host_block_cnt;
+            cudaMalloc((void **)&p_device_block_cnt, sizeof(int));
+            cudaMemset(p_device_block_cnt, 0, sizeof(int));
+            cudaMemset(global_cache, 0, GLOBAL_CACHE_SIZE * sizeof(float));
             dim3 gridSize(numBlks);
             dim3 blockSize(numThreadsPerBlk);
 
@@ -57,8 +61,6 @@ int main(int argc, char *argv[]) {
             cudaEventCreate(&cuda_end);
 
             // Prepare data
-            host_block_cnt = 0;
-            cudaMemcpy(p_device_block_cnt, &host_block_cnt, sizeof(int), cudaMemcpyHostToDevice);
             cudaMemcpy(p_device_max_val, &minVal, sizeof(float), cudaMemcpyHostToDevice);
 
             //device_maxValueVector<<<gridSize, blockSize>>>(p_device_vector, VECTOR_SIZE, elementsPerThread);
@@ -78,8 +80,9 @@ int main(int argc, char *argv[]) {
             } else {
                 printf("[WARN] ");
             }
-            printf("numOps: %d, numThreadsPerBlk: %d, numBlks: %d, host result:%.4f, device result:%.4f, block_cnt:%d, exec_time:%.4f\n",
+            printf("numOps: %10d, numThreadsPerBlk: %5d, numBlks: %5d, host result:%10.4f, device result:%10.4f, block_cnt:%5d, exec_time:%.4f\n",
                     numOps, numThreadsPerBlk, numBlks, *p_host_max_val, *p_host_device_max_val, host_block_cnt, tmp_exec_time);
+            cudaFree(p_device_block_cnt);
         }
     }
 
