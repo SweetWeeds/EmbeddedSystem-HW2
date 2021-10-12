@@ -3,9 +3,9 @@
 using namespace std;
 
 float *generateVector(int size, float *p_minVal, float *p_maxVal) {
-    random_device rd;
-    mt19937 gen(rd());
-    uniform_real_distribution<float> dis(0, 123456.789);
+    //random_device rd;
+    //mt19937 gen(rd());
+    //uniform_real_distribution<float> dis(0, 123456.789);
 
     float *vector = (float *)malloc(size * sizeof(float));
     
@@ -108,4 +108,8 @@ int main(int argc, char *argv[]) {
     cudaFree(p_device_vector);
     cudaFree(p_device_max_val);
     cudaFree(p_device_check_vector);
+    free(p_host_vector);
+    free(p_host_max_val);
+    free(p_host_device_max_val);
+    free(p_host_check_vector);
 }

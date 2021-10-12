@@ -18,7 +18,6 @@ void device_parallelized_maxValueVector(float *vector, float *p_maxVal, int vect
     // Stage 1: Thread, Get max value of thread's part
     vector = &vector[base_index];
     tmpMax = vector[0];
-    atomicAdd(p_block_cnt, 1);
     for (int i = 1; i < numOps; i++) {
         if ((base_index + i) < vector_size) {
             tmpCmp = vector[i];
