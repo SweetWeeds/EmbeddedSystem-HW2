@@ -6,6 +6,9 @@
 #include <sys/time.h>
 #include <cmath>
 
+#include "user_device.h"
+#include "user_host.h"
+
 #define FLOAT_MIN_VAL           1.175494351E-38
 #define VECTOR_SIZE             100000000   // Needs 95 MB for float vector
 #define NUM_THREADS_BASE        32

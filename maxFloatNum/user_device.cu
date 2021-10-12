@@ -12,58 +12,58 @@ float atomicMax_float(float *maxVal, float value) {
 __global__
 void device_parallelized_maxValueVector(float *vector, float *p_maxVal, int vector_size, int *p_block_cnt, int numOps) {
     extern __shared__ float cache[];
-    int index = blockDim.x * blockIdx.x + threadIdx.x;
-    int offset = gridDim.x * blockDim.x;
-    float tmp;
-
+    int base_index = (blockDim.x * blockIdx.x + threadIdx.x) * numOps;
+    float tmpMax, tmpCmp;
+    
     // Stage 1: Thread, Get max value of thread's part
-    for (int i = 0; i < numOps; i++) {
-        if (i == 0) {
-            cache[threadIdx.x] = vector[index];
-        } else {
-            if (index < vector_size) {
-                atomicMax_float(&cache[threadIdx.x], vector[index]);
-            }
+    vector = &vector[base_index];
+    tmpMax = vector[0];
+    atomicAdd(p_block_cnt, 1);
+    for (int i = 1; i < numOps; i++) {
+        if ((base_index + i) < vector_size) {
+            tmpCmp = vector[i];
+            tmpMax = (tmpMax < tmpCmp) ? tmpCmp : tmpMax;
+            atomicAdd(p_block_cnt, 1);
         }
-        index += offset;
     }
+    cache[threadIdx.x] = tmpMax;
     __syncthreads();
 
     // Stage 2: Thread Block, Get max value of thread block's part
     if (threadIdx.x == 0) {
-        tmp = cache[0];
+        tmpMax = cache[0];
         for (int i = 1; i < blockDim.x; i++) {
-            //atomicMax_float(&tmp, cache[i]);
-            tmp = (tmp < cache[i]) ? cache[i] : tmp;
+            tmpMax = (tmpMax < cache[i]) ? cache[i] : tmpMax;
         }
-        global_cache[blockIdx.x] = tmp;
-        (*p_block_cnt) = (*p_block_cnt) + 1;
+        global_cache[blockIdx.x] = tmpMax;
     } else {
         return;
     }
 
     // Stage 3: Grid, Get max value of all of vector
-    //if (blockIdx.x == 0) {
-    if ((*p_block_cnt) == gridDim.x) {
-        tmp = global_cache[0];
+    if (blockIdx.x == 0) {
+        tmpMax = global_cache[0];
         for (int i = 1; i < gridDim.x; i++) {
-            //atomicMax_float(&tmp, global_cache[i]);
-            tmp = (tmp < global_cache[i]) ? global_cache[i] : tmp;
+            tmpCmp = global_cache[i];
+            tmpMax = (tmpMax < tmpCmp) ? tmpCmp : tmpMax;
         }
-        *p_maxVal = tmp;
+        (*p_maxVal) = tmpMax;
+    } else {
+        return;
     }
 }
 
 
 __global__
 void device_simple_maxValueVector(float *vector, int vector_size, int numOps, float *p_maxVal) {
-    int index = blockDim.x * blockIdx.x + threadIdx.x;
-    int offset = gridDim.x * blockDim.x;
+    int base_index = (blockDim.x * blockIdx.x + threadIdx.x) * numOps;
+    //int offset = gridDim.x * blockDim.x;
 
     for (int i = 0; i < numOps; i++) {
-        if (index < vector_size) {
-            atomicMax_float(p_maxVal, vector[index]);
+        if ((base_index + i) < vector_size) {
+            atomicMax_float(p_maxVal, vector[base_index + i]);
+        } else {
+            return;
         }
-        index += offset;
     }
 }
