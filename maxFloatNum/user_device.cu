@@ -10,7 +10,7 @@ float atomicMax_float(float *maxVal, float value) {
 }
 
 __global__
-void device_parallelized_maxValueVector(float *vector, float *p_maxVal, int vector_size, int *p_block_cnt, int numOps) {
+void device_parallelized_maxValueVector(float *vector, float *p_maxVal, int vector_size, int *p_block_cnt, int numOps, int *p_device_check_vector) {
     extern __shared__ float cache[];
     int base_index = (blockDim.x * blockIdx.x + threadIdx.x) * numOps;
     float tmpMax, tmpCmp;
