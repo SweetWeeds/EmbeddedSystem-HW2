@@ -2,7 +2,7 @@
 
 __global__
 void device_Concatenate(int *device_mat1, int *device_mat2, int *device_matr,
-                        int numOps, int numElements, int mat1_col, int mat2_col, int matr_col, int TB_size) {
+                        int numOps, int numElements, int mat1_col, int mat2_col, int matr_col) {
     __shared__ int subMatr[1024];
     int index = blockDim.x * blockIdx.x + threadIdx.x;
     int row_index, col_index;
@@ -15,7 +15,7 @@ void device_Concatenate(int *device_mat1, int *device_mat2, int *device_matr,
             subMatr[threadIdx.x] = (col_index < mat1_col) ?
                 device_mat1[row_index * mat1_col + col_index] :
                 device_mat2[row_index * mat2_col + (col_index - mat1_col)];
-            __syncthreads();
+            //__syncthreads();
             device_matr[index] = subMatr[threadIdx.x];
             index += offset;
         }

@@ -7,6 +7,9 @@
 #include <string>
 #include <fstream>
 
+#include "user_host.h"
+#include "user_device.h"
+
 #define MAT1_ROW    512
 #define MAT1_COL    1024
 #define MAT2_ROW    512

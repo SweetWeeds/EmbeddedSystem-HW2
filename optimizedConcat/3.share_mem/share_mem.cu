@@ -1,6 +1,4 @@
 #include "user.h"
-#include "user_host.h"
-#include "user_device.h"
 
 using namespace std;
 
@@ -85,7 +83,7 @@ int main(int argc, char *argv[]) {
                 cudaEventCreate(&cuda_start);
                 cudaEventCreate(&cuda_end);
                 cudaEventRecord(cuda_start, 0);
-                device_Concatenate<<<gridSize, blockSize, MATR_ROW*MATR_COL>>>(device_mat1, device_mat2, device_matr,
+                device_Concatenate<<<gridSize, blockSize, numThreadsperBlock>>>(device_mat1, device_mat2, device_matr,
                                                             numOps, numElements, MAT1_COL, MAT2_COL, MATR_COL);
                 cudaEventRecord(cuda_end, 0);
                 cudaEventSynchronize(cuda_end);

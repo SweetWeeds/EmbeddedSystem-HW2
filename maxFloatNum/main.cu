@@ -3,6 +3,7 @@
 using namespace std;
 
 int main(int argc, char *argv[]) {
+    // Preapre file I/O
     string fileName;
     if (argc == 1) fileName = "maxFloatNum.csv";
     else fileName = argv[1];
@@ -15,7 +16,7 @@ int main(int argc, char *argv[]) {
     generateVector(p_host_vector, VECTOR_SIZE, &minVal, &maxVal);
     printf("[INFO] Max value:%.4f, Min Value:%.4f\n", maxVal, minVal);
 
-    // Copy vec from host to device
+    // Copy vector from host to device
     float *p_host_max_val   = (float *)malloc(sizeof(float)), *p_device_vector;
     float *p_host_device_max_val = (float *)malloc(sizeof(float)), *p_device_max_val;
     cudaMalloc((void **)&p_device_vector, VECTOR_SIZE * sizeof(float));
@@ -35,8 +36,7 @@ int main(int argc, char *argv[]) {
         host_exec_time += tmp_exec_time;
     }
     host_exec_time /= ITERATION;
-    cd.AddData("host", 1, 1, host_exec_time);
-    //printf("[INFO] Host Execution time: %.4f\n", host_exec_time);
+    cd.AddHostData(host_exec_time, p_host_max_val, sizeof(float));
 
     // Device Code
     for (int numThreadsPerBlk = NUM_THREADS_BASE; numThreadsPerBlk <= NUM_THREADS_MAX; numThreadsPerBlk*=2) {
@@ -58,7 +58,7 @@ int main(int argc, char *argv[]) {
                 // Prepare data
                 cudaMemset(p_device_max_val, 0, sizeof(float));
                 cudaMemset(p_device_block_cnt, 0, sizeof(int));
-                
+
                 // Execute Kernel
                 cudaEventRecord(cuda_start, 0);
                 device_maxValueVector<<<gridSize, blockSize, numThreadsPerBlk*sizeof(float)>>>
@@ -77,12 +77,7 @@ int main(int argc, char *argv[]) {
             // Print Results
             cudaMemcpy(&host_block_cnt, p_device_block_cnt, sizeof(int), cudaMemcpyDeviceToHost);
             cudaMemcpy(p_host_device_max_val, p_device_max_val, sizeof(float), cudaMemcpyDeviceToHost);
-            cd.AddData("device", numThreadsPerBlk, numBlks, avg_exec_time);
-            //if (*p_host_device_max_val != *p_host_max_val) {
-            //    printf("   [ERROR] Values are not matching.\n"\
-            //           "           host: %.4f"\
-            //           "           device: %.4f", *p_host_max_val, *p_host_device_max_val);
-            //}
+            cd.AddDeviceData(numThreadsPerBlk, numBlks, avg_exec_time, p_host_device_max_val, sizeof(float));
 
             cudaFree(p_device_block_cnt);
         }

@@ -1,7 +1,6 @@
 #include "user_device.cuh"
 
 __device__ float global_cache[GLOBAL_CACHE_SIZE];
-__device__ int block_cnt = 0;
 
 
 /**
@@ -24,60 +23,48 @@ float atomicMax_float(float *maxVal, float value) {
  * function name: device_maxValueVector
  * Return Type: void
  * Description:
- *      This kernel function 
+ *      This kernel function find max value from large vector.
+ *      Stage 1: Find max value from partial vector which allocated to each thread.
+ *      Stage 2: Find max value from thread block.
+ *      Stage 3: Find max value from grid.
  */
 __global__
 void device_maxValueVector(float *vec, float *p_maxVal, int vector_size, int *p_block_cnt, int numOps) {
     extern __shared__ float cache[];
     int index = blockDim.x * blockIdx.x + threadIdx.x;
     int offset = gridDim.x * blockDim.x;
-    float tmpMax, tmpCmp;
+    float tmpMax = -INFINITY, tmpCmp;
     
-    // Stage 1: Thread, Get max value of thread's part
+    // Stage 1: Thread. Get max value of thread's partial vector.
     for (int i = 0; i < numOps; i++) {
         if (index < vector_size) {
-            if (i == 0) {
-                tmpMax = vec[index];
-            } else {
-                tmpCmp = vec[index];
-                tmpMax = (tmpMax < tmpCmp) ? tmpCmp : tmpMax;
-            }
-            index += offset;
-        } else {
-            if (i == 0) return;
-            else break;
+            tmpCmp = vec[index];
+        } else {    // index is out of range.
+            tmpCmp = -INFINITY;
         }
+        tmpMax = (tmpMax < tmpCmp) ? tmpCmp : tmpMax;
+        index += offset;
     }
     cache[threadIdx.x] = tmpMax;
     __syncthreads();
 
-    // Stage 2: Thread Block, Get max value of thread block's part
+    // Stage 2: Thread Block. Get max value from 'global_cache[]'
     if (threadIdx.x == 0) {
         for (int i = 0; i < blockDim.x; i++) {
-            if (i == 0) {
-                tmpMax = cache[i];
-            } else {
-                tmpCmp = cache[i];
-                tmpMax = (tmpMax < tmpCmp) ? tmpCmp : tmpMax;
-            }
+            tmpCmp = cache[i];
+            tmpMax = (tmpMax < tmpCmp) ? tmpCmp : tmpMax;
         }
         global_cache[blockIdx.x] = tmpMax;
-        //atomicAdd(p_block_cnt, 1);  // Counter for synchronization of thread blocks.
-        atomicAdd(&block_cnt, 1);
+        atomicAdd(p_block_cnt, 1);  // Counter for synchronization of thread blocks.
     } else {
         return;
     }
 
     // Stage 3: Grid, Get max value of from thread blocks' results.
-    //if ((*p_block_cnt) == gridDim.x) {
-    if (block_cnt == gridDim.x) {
+    if ((*p_block_cnt) == gridDim.x) {
         for (int i = 0; i < gridDim.x; i++) {
-            if (i == 0) {
-                tmpMax = global_cache[i];
-            } else {
-                tmpCmp = global_cache[i];
-                tmpMax = (tmpMax < tmpCmp) ? tmpCmp : tmpMax;
-            }
+            tmpCmp = global_cache[i];
+            tmpMax = (tmpMax < tmpCmp) ? tmpCmp : tmpMax;
         }
         (*p_maxVal) = tmpMax;
     } else {

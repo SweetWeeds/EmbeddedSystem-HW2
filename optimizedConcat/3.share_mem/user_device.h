@@ -3,7 +3,6 @@
 #define USER_DEVICE_H
 
 #include "user.h"
-#include <cuda_runtime.h>
 
 #define NUM_THREADS_BASE        32
 #define NUM_THREADSA_MAX        1024

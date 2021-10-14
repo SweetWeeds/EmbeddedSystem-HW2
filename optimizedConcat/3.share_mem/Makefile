@@ -1,5 +1,5 @@
 CC = nvcc
-OBJS = share_mem.o user_device.o user_host.o user.o
+OBJS = user_device.o user_host.o user.o share_mem.o
 CFLAGS = -c
 
 all : share_mem.out
